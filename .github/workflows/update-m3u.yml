@@ -2,14 +2,14 @@ name: YouTube M3U Güncelleyici
 
 on:
   schedule:
-    - cron: '0 */6 * * *' # Her 6 saatte bir otomatik çalışır
-  workflow_dispatch:      # Manuel olarak başlatma butonu ekler
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: write     # Dosyayı geri yazabilmek için gerekli izin
+      contents: write
 
     steps:
       - name: Depoyu Kontrol Et
@@ -21,11 +21,14 @@ jobs:
           python-version: '3.x'
 
       - name: Scripti Çalıştır
+        # Timeout süresini 5 dakika olarak belirledik
         run: python generate_m3u.py
+        timeout-minutes: 5
 
       - name: Güncellemeleri Kaydet ve Gönder
+        if: success() # Sadece script başarılı olursa commit yap
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add metube.m3u
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Otomatik M3U Güncelleme: $(date)" && git push)
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Otomatik Güncelleme: $(date)" && git push)
