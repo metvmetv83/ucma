@@ -1,4 +1,3 @@
-@ -1,135 +0,0 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
@@ -6,131 +5,112 @@ import subprocess
 import sys
 import time
 import random
-import shutil
+import os
 from datetime import datetime
 
-def get_hls_with_ytdlp_ytse(video_id):
-    """
-    yt-dlp-ytse ile YouTube canlı yayınından HLS bağlantısını al
-    """
-    # yt-dlp'nin tam yolunu bul
-    yt_dlp_path = shutil.which('yt-dlp')
-    
-    if not yt_dlp_path:
-        # Alternatif yolları dene
-        possible_paths = [
-            '/usr/local/bin/yt-dlp',
-            '/usr/bin/yt-dlp',
-            f'{sys.prefix}/bin/yt-dlp'
-        ]
-        for path in possible_paths:
-            if shutil.which(path) or True:  # Basit kontrol
-                yt_dlp_path = path
-                break
-    
-    if not yt_dlp_path:
-        # Son çare: pip show ile bulmaya çalış
-        try:
-            result = subprocess.run(
-                [sys.executable, '-m', 'pip', 'show', 'yt-dlp-ytse'],
-                capture_output=True,
-                text=True
-            )
-            if result.returncode == 0:
-                # Genelde ~/.local/bin/yt-dlp olur
-                yt_dlp_path = f'{sys.prefix}/bin/yt-dlp'
-        except:
-            pass
-    
+def get_hls_link(identifier):
+    # ID içindeki olası tam URL'leri temizle (Sadece ID kısmını al)
+    id_clean = identifier.strip()
+    if 'v=' in id_clean:
+        id_clean = id_clean.split('v=')[1].split('&')[0]
+    elif 'youtu.be/' in id_clean:
+        id_clean = id_clean.split('youtu.be/')[1].split('?')[0]
+    elif 'channel/' in id_clean:
+        id_clean = id_clean.split('channel/')[1].split('/')[0]
+
+    # Hedef URL Belirleme
+    if id_clean.startswith('UC'):
+        target_url = f'https://www.youtube.com/channel/{id_clean}/live'
+    else:
+        target_url = f'https://www.youtube.com/watch?v={id_clean}'
+
     cmd = [
-        yt_dlp_path or 'yt-dlp',  # Fallback
-        '--no-warnings',
-        '--no-cache-dir',
-        '-g',  # Sadece URL'yi göster
-        '-f', 'best',  # En iyi format
-        f'https://www.youtube.com/watch?v={video_id}'
+        sys.executable, "-m", "yt_dlp",
+        "--no-cache-dir",
+        "--no-warnings",
+        "-f", "best",
+        "-g"
     ]
+
+    # GitHub Actions için Cookies kontrolü (KRİTİK)
+    if os.path.exists("cookies.txt"):
+        cmd.extend(["--cookies", "cookies.txt"])
+    
+    cmd.append(target_url)
     
     try:
-        print(f"      📤 yt-dlp çalıştırılıyor...")
         result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=30
+            cmd, 
+            capture_output=True, 
+            text=True, 
+            timeout=60,
+            env={**os.environ, "PYTHONIOENCODING": "utf-8"}
         )
         
         if result.returncode == 0:
-            output = result.stdout.strip()
-            if output and ('.m3u8' in output or 'manifest' in output):
-                return output
-            else:
-                print(f"      ⚠️ HLS URL bulunamadı")
+            stdout = result.stdout.strip()
+            for line in stdout.split('\n'):
+                if '.m3u8' in line or 'googlevideo.com' in line:
+                    return line.strip()
+            return stdout.split('\n')[0].strip() if stdout else None
         else:
-            error_msg = result.stderr.lower()
-            if '403' in error_msg:
-                print(f"      ⚠️ 403 Forbidden - IP engellenmiş olabilir")
-            elif 'sign in' in error_msg:
-                print(f"      ⚠️ YouTube oturum gerektiriyor")
-            else:
-                print(f"      ⚠️ yt-dlp hatası: {result.stderr[:100]}")
+            err = result.stderr.lower()
+            if "sign in" in err: return "BOT_BLOCK"
+            if "not exist" in err: return "NOT_FOUND"
+            return None
                 
-    except subprocess.TimeoutExpired:
-        print(f"      ⚠️ Zaman aşımı")
-    except Exception as e:
-        print(f"      ⚠️ Hata: {str(e)[:50]}")
-    
-    return None
-
+    except Exception:
+        return None
 
 def generate_m3u():
-    print(f"\n🎬 YouTube M3U Jeneratör - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"\n🎬 MeTube M3U Jeneratör - {datetime.now().strftime('%H:%M:%S')}")
     print("=" * 60)
     
-    try:
-        with open('ids.txt', 'r', encoding='utf-8') as f:
-            lines = [line.strip() for line in f if line.strip() and not line.startswith('#')]
-    except FileNotFoundError:
-        print("❌ ids.txt bulunamadı!")
+    if not os.path.exists("cookies.txt"):
+        print("❌ HATA: cookies.txt bulunamadı! YouTube erişimi engellenecek.")
+        # GitHub Actions'ta cookies yoksa durması için (isteğe bağlı):
+        # return False
+
+    input_file = 'ids.txt'
+    output_file = 'metube.m3u'
+    
+    if not os.path.exists(input_file):
+        print(f"❌ {input_file} bulunamadı!")
         return False
+    
+    with open(input_file, 'r', encoding='utf-8') as f:
+        lines = [line.strip() for line in f if line.strip() and not line.startswith('#')]
     
     m3u_content = ['#EXTM3U']
     success_count = 0
-    total = len(lines)
     
     for idx, line in enumerate(lines, 1):
-        parts = line.split('|')
-        if len(parts) != 3:
-            continue
+        if '|' not in line: continue
+        name, identifier = line.split('|')[:2]
         
-        name, url, logo = parts
-        video_id = url.split('=')[-1]
+        print(f"📺 [{idx}/{len(lines)}] {name.strip()}", end=" ", flush=True)
+        hls_url = get_hls_link(identifier)
         
-        print(f"\n📺 [{idx}/{total}] {name}")
-        
-        hls_url = get_hls_with_ytdlp_ytse(video_id)
-        
-        if hls_url:
-            m3u_content.append(f'\n#EXTINF:-1 tvg-id="{video_id}" tvg-name="{name}" tvg-logo="{logo}" group-title="Canlı TV",{name}')
+        if hls_url == "BOT_BLOCK":
+            print("-> ❌ BOT ENGELİ (Cookies yenileyin)")
+        elif hls_url == "NOT_FOUND":
+            print("-> ❌ KANAL/VİDEO BULUNAMADI")
+        elif hls_url:
+            m3u_content.append(f'#EXTINF:-1 group-title="YouTube Canlı",{name.strip()}')
             m3u_content.append(hls_url)
-            print(f"   ✅ BAŞARILI!")
+            print("-> ✅ BAŞARILI")
             success_count += 1
         else:
-            print(f"   ❌ BAŞARISIZ")
+            print("-> ❌ BAŞARISIZ")
         
-        if idx < total:
-            wait_time = random.randint(10, 15)
-            print(f"   ⏳ {wait_time} saniye bekleniyor...")
-            time.sleep(wait_time)
+        if idx < len(lines):
+            time.sleep(random.randint(5, 8))
     
-    with open('youtube.m3u', 'w', encoding='utf-8') as f:
+    with open(output_file, 'w', encoding='utf-8') as f:
         f.write('\n'.join(m3u_content))
     
-    print(f"\n📊 ÖZET: {success_count}/{total} kanal başarılı")
+    print(f"\n📊 ÖZET: {success_count}/{len(lines)} kanal güncellendi.")
     return success_count > 0
 
-
 if __name__ == '__main__':
-    print("🚀 YouTube M3U Generator (yt-dlp-ytse) Başlatılıyor...")
-    success = generate_m3u()
-    sys.exit(0 if success else 1)
+    sys.exit(0 if generate_m3u() else 1)
