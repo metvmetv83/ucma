@@ -1,6 +1,38 @@
-Sözcü TV|UCOulx_rep5O4i9y6AyDqVvw
-Halk TV|UCfJW89Xv79vA_zLwL9YtT_Q
-CNN TÜRK|6N8_r2uwLEc
-Kurtlar Vadisi|57EWf-jvHQY
-Edho|F0yeYa-SSDc
-Selena|1lyLi6l74fs
+# --- HABER KANALLARI ---
+Sözcü TV|UCV6zcRug6Hqp1UX_FdyUeBg
+Halk TV|UCn6dNfiRE_Xunu7iMyvD7AA
+CNN TÜRK|UCJElRTCNEmLemgirqvsW63Q
+Habertürk|UC6T0L26KS1NHMPbTwI1L4Eg
+A Haber|UCOulx_rep5O4i9y6AyDqVvw
+NTV|UC9v_68v4O_A9-U_H00Y_E9g
+TRT Haber|UC3d1AdmvAP6Jq16-WpD086g
+TGRT Haber|UCB0aK_m66_Uf5fH2G2Fm_Vw
+TVNET|UC8rh34IlJTN0lDZlTwzWzjg
+Ülke TV|UCn6dNfiRE_Xunu7iMyvD7AA
+Global TV|UCfJW89Xv79vA_zLwL9YtT_Q
+Ekol TV|UCpE-I6YI_XvS9G_V8B59U8w
+
+# --- SPOR VE EĞLENCE ---
+A Spor|UC9H_W9Vscz6mYAtFfH_mInA
+TRT Spor|UCBvY_h06X2V9mYp7mKkLz-A
+BeIN Sports Haber|UCm9L-f7XWcT7H4_f0Y6O3Cw
+TV8|UC5fJW89Xv79vA_zLwL9YtT_Q
+
+# --- DİZİ VE SİNEMA ---
+Kurtlar Vadisi|UC_pT9766YOCp_vL0Vv7u2rQ
+Selena|UC3d1AdmvAP6Jq16-WpD086g
+Arka Sokaklar|UC6i_lP_V-tLshA9E9n6zYtA
+Edho (Eşkıya)|F0yeYa-SSDc
+Çocuklar Duymasın|UCp_vL0Vv7u2rQ_pT9766YOC
+Dizi Test|57EWf-jvHQY
+Sinema TV|UCV6zcRug6Hqp1UX_FdyUeBg
+
+# --- ÇOCUK KANALLARI ---
+TRT Çocuk|UC3d1AdmvAP6Jq16-WpD086g
+Minika Çocuk|UC6i_lP_V-tLshA9E9n6zYtA
+Minika GO|UCp_vL0Vv7u2rQ_pT9766YOC
+Kukuli|UCV6zcRug6Hqp1UX_FdyUeBg
+Niloya|UCn6dNfiRE_Xunu7iMyvD7AA
+Maşa ile Koca Ayı|UCJElRTCNEmLemgirqvsW63Q
+Pırıl|UC8rh34IlJTN0lDZlTwzWzjg
+Kral Şakir|UC5fJW89Xv79vA_zLwL9YtT_Q
