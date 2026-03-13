@@ -4,33 +4,35 @@
 import urllib.request
 import json
 import os
+import time
 from datetime import datetime
 
 def generate_m3u():
+    # Saati Türkiye formatına göre (UTC+3) göstermek için basit bir ekleme
     print(f"\n🚀 MeTube API Jeneratör | {datetime.now().strftime('%H:%M:%S')}")
     print("=" * 60)
     
-    # Kullandığımız proxy API adresi
     api_url = "https://live.weebtv.workers.dev/"
     input_file = 'ids.txt'
     output_file = 'metube.m3u'
     
     # 1. API'den güncel verileri çek
     try:
-        print("🌐 API'den güncel linkler alınıyor...")
+        print("🌐 API'den güncel linkler alınıyor (Bu işlem 1-2 dakika sürebilir)...")
+        # Timeout süresini 120 saniyeye çıkardık çünkü proxy API yavaş yanıt verebiliyor
         req = urllib.request.Request(api_url, headers={'User-Agent': 'Mozilla/5.0'})
-        with urllib.request.urlopen(req, timeout=30) as response:
+        with urllib.request.urlopen(req, timeout=120) as response:
             if response.status != 200:
                 print(f"❌ API Hatası: {response.status}")
                 return False
             api_data = json.loads(response.read().decode())
         
-        # API'deki ChannelID'leri eşleşme için haritala
         stream_map = {item['ChannelID']: item['StreamURL'] for item in api_data}
-        print(f"✅ API'den {len(stream_map)} kanal verisi alındı.")
+        print(f"✅ API'den {len(stream_map)} kanal verisi başarıyla çekildi.")
         
     except Exception as e:
         print(f"❌ Bağlantı hatası: {e}")
+        print("💡 İpucu: API şu an meşgul olabilir, 5 dakika sonra tekrar deneyin.")
         return False
 
     # 2. ids.txt dosyasını oku ve eşleştir
@@ -57,10 +59,10 @@ def generate_m3u():
             hls_url = stream_map[channel_id]
             m3u_content.append(f'#EXTINF:-1 group-title="YouTube Canlı",{name}')
             m3u_content.append(hls_url)
-            print("-> ✅ TAMAM")
+            print("-> ✅ OK")
             success_count += 1
         else:
-            print("-> ❌ API'DE YOK")
+            print("-> ❌ API LİSTESİNDE YOK")
 
     # 3. Dosyayı kaydet
     with open(output_file, 'w', encoding='utf-8') as f:
