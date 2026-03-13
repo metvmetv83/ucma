@@ -7,23 +7,25 @@ import os
 from datetime import datetime
 
 def generate_m3u():
-    print(f"\n🚀 MeTube API Jeneratör (Urllib) | {datetime.now().strftime('%H:%M:%S')}")
+    print(f"\n🚀 MeTube API Jeneratör | {datetime.now().strftime('%H:%M:%S')}")
     print("=" * 60)
     
+    # Kullandığımız proxy API adresi
     api_url = "https://live.weebtv.workers.dev/"
     input_file = 'ids.txt'
     output_file = 'metube.m3u'
     
-    # 1. API'den güncel verileri çek (Standard Library - urllib)
+    # 1. API'den güncel verileri çek
     try:
         print("🌐 API'den güncel linkler alınıyor...")
         req = urllib.request.Request(api_url, headers={'User-Agent': 'Mozilla/5.0'})
-        with urllib.request.urlopen(req, timeout=20) as response:
+        with urllib.request.urlopen(req, timeout=30) as response:
             if response.status != 200:
                 print(f"❌ API Hatası: {response.status}")
                 return False
             api_data = json.loads(response.read().decode())
         
+        # API'deki ChannelID'leri eşleşme için haritala
         stream_map = {item['ChannelID']: item['StreamURL'] for item in api_data}
         print(f"✅ API'den {len(stream_map)} kanal verisi alındı.")
         
@@ -36,12 +38,8 @@ def generate_m3u():
         print(f"❌ {input_file} bulunamadı!")
         return False
     
-    try:
-        with open(input_file, 'r', encoding='utf-8') as f:
-            lines = [line.strip() for line in f if line.strip() and not line.startswith('#')]
-    except Exception as e:
-        print(f"❌ Dosya okuma hatası: {e}")
-        return False
+    with open(input_file, 'r', encoding='utf-8') as f:
+        lines = [line.strip() for line in f if line.strip() and not line.startswith('#')]
     
     m3u_content = ['#EXTM3U']
     success_count = 0
@@ -59,10 +57,10 @@ def generate_m3u():
             hls_url = stream_map[channel_id]
             m3u_content.append(f'#EXTINF:-1 group-title="YouTube Canlı",{name}')
             m3u_content.append(hls_url)
-            print("-> ✅ OK")
+            print("-> ✅ TAMAM")
             success_count += 1
         else:
-            print("-> ❌ API'DE BULUNAMADI")
+            print("-> ❌ API'DE YOK")
 
     # 3. Dosyayı kaydet
     with open(output_file, 'w', encoding='utf-8') as f:
