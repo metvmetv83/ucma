@@ -10,43 +10,50 @@ from datetime import datetime
 
 def get_hls_link(identifier):
     """
-    Hem Kanal ID hem de Video ID destekleyen, 
-    komut dizimi hatasını önleyen geliştirilmiş fonksiyon.
+    Parametre hatalarını önlemek için en temel komut yapısını kullanan fonksiyon.
     """
     id_clean = identifier.strip()
     
-    # Eğer identifier bir kanal ID'si ise (UC ile başlıyorsa)
+    # URL Belirleme
     if id_clean.startswith('UC'):
         target_url = f'https://www.youtube.com/channel/{id_clean}/live'
-    # Eğer doğrudan bir video ID'si ise
     else:
         target_url = f'https://www.youtube.com/watch?v={id_clean}'
 
-    # Parametre sıralaması 'Usage' hatasını önlemek için optimize edildi
+    # Hata veren --nocheckcertificate gibi opsiyonları kaldırıp en sade haliyle çağırıyoruz
+    # Sadece m3u8 linkini çekmeye odaklı minimal parametre seti
     cmd = [
         sys.executable, "-m", "yt_dlp",
-        "--no-warnings",
         "--no-cache-dir",
-        "--nocheckcertificate",
-        "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        "--no-warnings",
         "-f", "best",
         "-g",
         target_url
     ]
     
     try:
-        # stdout ve stderr'i ayırarak daha iyi hata takibi yapıyoruz
-        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        stdout, stderr = process.communicate(timeout=60)
+        # Popen yerine run kullanarak daha stabil bir süreç yönetimi sağlıyoruz
+        result = subprocess.run(
+            cmd, 
+            capture_output=True, 
+            text=True, 
+            timeout=60,
+            # Bazı sistemlerde çevre değişkenleri sorun yaratabilir, temizliyoruz
+            env={**os.environ, "PYTHONIOENCODING": "utf-8"}
+        )
         
-        if process.returncode == 0:
-            links = stdout.strip().split('\n')
-            for link in links:
-                if '.m3u8' in link or 'googlevideo.com' in link:
-                    return link.strip()
-            return links[0].strip() if links else None
+        if result.returncode == 0:
+            stdout = result.stdout.strip()
+            if stdout:
+                # Birden fazla link dönerse (audio+video), m3u8 içeren satırı seç
+                for line in stdout.split('\n'):
+                    if '.m3u8' in line or 'googlevideo.com' in line:
+                        return line.strip()
+                return stdout.split('\n')[0].strip()
         else:
-            print(f"      ⚠️ Detaylı Hata: {stderr[:100].strip()}")
+            # Hata mesajını sadeleştirip göster
+            err_msg = result.stderr.split('\n')[0] if result.stderr else "Bilinmeyen Hata"
+            print(f"      ⚠️ yt-dlp Hatası: {err_msg[:70]}")
                 
     except Exception as e:
         print(f"      ⚠️ Sistem Hatası: {str(e)[:50]}")
@@ -64,11 +71,15 @@ def generate_m3u():
         print(f"❌ {input_file} bulunamadı!")
         return False
     
-    with open(input_file, 'r', encoding='utf-8') as f:
-        lines = [line.strip() for line in f if line.strip() and not line.startswith('#')]
+    try:
+        with open(input_file, 'r', encoding='utf-8') as f:
+            lines = [line.strip() for line in f if line.strip() and not line.startswith('#')]
+    except Exception as e:
+        print(f"❌ Dosya okuma hatası: {e}")
+        return False
     
     if not lines:
-        print("⚠️ Liste boş, işlem yapılmadı.")
+        print("⚠️ Liste boş.")
         return False
 
     m3u_content = ['#EXTM3U']
@@ -88,7 +99,6 @@ def generate_m3u():
         hls_url = get_hls_link(identifier)
         
         if hls_url:
-            # Bazı oynatıcılar için linkin sonuna User-Agent eklemek gerekebilir (isteğe bağlı)
             m3u_content.append(f'#EXTINF:-1 group-title="YouTube Canlı",{name}')
             m3u_content.append(hls_url)
             print(f"   ✅ BAŞARILI")
@@ -97,15 +107,19 @@ def generate_m3u():
             print(f"   ❌ BAŞARISIZ")
         
         if idx < total:
-            wait = random.randint(5, 10)
-            time.sleep(wait)
+            # YouTube bot algılamasını geciktirmek için kısa bekleme
+            time.sleep(random.randint(4, 7))
     
-    with open(output_file, 'w', encoding='utf-8') as f:
-        f.write('\n'.join(m3u_content))
+    try:
+        with open(output_file, 'w', encoding='utf-8') as f:
+            f.write('\n'.join(m3u_content))
+    except Exception as e:
+        print(f"❌ Yazma hatası: {e}")
+        return False
     
-    print(f"\n📊 ÖZET: {success_count}/{total} kanal başarıyla eklendi.")
+    print(f"\n📊 ÖZET: {success_count}/{total} kanal güncellendi.")
     return success_count > 0
 
 if __name__ == '__main__':
-    # Kodun sonucuna göre çıkış yap
+    # İşlem sonucu başarılıysa 0 döner (GitHub Actions için)
     sys.exit(0 if generate_m3u() else 1)
